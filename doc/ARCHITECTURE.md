@@ -8,25 +8,11 @@
 
 ## 分层组织
 
-```text
-PS: embedding / model image / task submission
-                    |
-     AXI-Lite + hidden PIO + result/IRQ
-                    |
-       BitNetResidentBoardAccelerator
-                    |
-       ResidentSessionInferenceTop
-                    |
-       SessionRoundController
-                    |
-       ResidentPreloadedHiddenFullLayerShell
-          |             |              |
-   event scheduler  resident tensor  five-bank memory hub
-          |             |              |
-   Matrix / Attention / RMS / RoPE / Quant / FFN / LM
-          |                            |
-   shared TP2 compute             PS DDR interfaces
-```
+![Ultra-BitNet TP2 板级架构：PS 软件经 AXI-Lite 提交任务，PL 内部以事件调度共享计算与存储资源，五路 AXI 接口连接同一 PS DDR。](assets/architecture.png)
+
+[查看可缩放矢量图](assets/architecture.svg)
+
+图中箭头表示主要控制和数据交互，省略局部 FIFO、复位及逐信号连接。计算壳内的算子服务共享物理资源；五路 DDR 接口访问同一 PS DDR 控制器，并非五套独立存储器。
 
 板级顶层在 `BitNetResidentBoardAccelerator.scala`。`BitNetResidentSessionInferenceTop.scala` 连接 session controller 和完整计算壳；`BitNetResidentPreloadedHiddenFullLayerShell.scala` 汇聚各物理资源并建立完整数据通路。session 控制器保存 round/session 状态，计算壳是矩阵阵列、tensor 存储和 memory hub 的唯一所有者。
 
