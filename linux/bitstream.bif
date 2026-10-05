@@ -1,0 +1,4 @@
+all:
+{
+    [destination_device=pl] firmware/design_1_wrapper.bit
+}
