@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icraft.local/schemas/traffic-message-v2.0.json",
+  "title": "Icraft traffic analysis message",
+  "type": "object",
+  "required": ["schema_version", "timestamp", "scene_id", "frame_id", "objects", "events", "traffic_stats", "traffic_light"],
+  "properties": {
+    "schema_version": { "const": "2.0" },
+    "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$" },
+    "scene_id": { "type": "string", "pattern": "^camera_[0-9]+$" },
+    "frame_id": { "type": "integer", "minimum": 0 },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["track_id", "class", "bbox", "score"],
+        "properties": {
+          "track_id": { "type": "integer", "minimum": 1 },
+          "class": { "type": "string" },
+          "bbox": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "number" }, { "type": "number" },
+              { "type": "number", "minimum": 0 }, { "type": "number", "minimum": 0 }
+            ],
+            "minItems": 4,
+            "maxItems": 4
+          },
+          "score": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["event_type", "participants", "participant_classes", "location", "desc"],
+        "properties": {
+          "event_type": { "const": "collision" },
+          "participants": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 2, "maxItems": 2 },
+          "participant_classes": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2 },
+          "location": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+          "desc": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "traffic_stats": {
+      "type": "object",
+      "required": ["window_seconds", "count_north", "count_south", "count_east", "count_west", "window_north", "window_south", "window_east", "window_west", "north_south_total", "east_west_total", "vehicles_in_scene"],
+      "properties": {
+        "window_seconds": { "type": "integer", "minimum": 1 },
+        "count_north": { "$ref": "#/$defs/count" },
+        "count_south": { "$ref": "#/$defs/count" },
+        "count_east": { "$ref": "#/$defs/count" },
+        "count_west": { "$ref": "#/$defs/count" },
+        "window_north": { "$ref": "#/$defs/count" },
+        "window_south": { "$ref": "#/$defs/count" },
+        "window_east": { "$ref": "#/$defs/count" },
+        "window_west": { "$ref": "#/$defs/count" },
+        "north_south_total": { "$ref": "#/$defs/count" },
+        "east_west_total": { "$ref": "#/$defs/count" },
+        "vehicles_in_scene": { "$ref": "#/$defs/count" }
+      },
+      "additionalProperties": true
+    },
+    "traffic_light": {
+      "type": "object",
+      "required": ["control_mode", "hardware_output", "current_phase", "north", "south", "east", "west", "remaining_seconds", "planned_green_seconds", "adjustment"],
+      "properties": {
+        "control_mode": { "const": "simulation" },
+        "hardware_output": { "const": false },
+        "current_phase": { "$ref": "#/$defs/phase" },
+        "north": { "$ref": "#/$defs/light" },
+        "south": { "$ref": "#/$defs/light" },
+        "east": { "$ref": "#/$defs/light" },
+        "west": { "$ref": "#/$defs/light" },
+        "remaining_seconds": { "type": "integer", "minimum": 0 },
+        "planned_green_seconds": {
+          "type": "object",
+          "required": ["north_south", "east_west"],
+          "properties": {
+            "north_south": { "type": "integer", "minimum": 1 },
+            "east_west": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": true
+        },
+        "adjustment": {
+          "type": "object",
+          "required": ["changed", "reason", "previous_north_south_green", "new_north_south_green", "previous_east_west_green", "new_east_west_green"],
+          "properties": {
+            "changed": { "type": "boolean" },
+            "reason": { "enum": ["initial_schedule", "balanced_or_no_flow", "balanced_flow", "north_south_flow_higher", "east_west_flow_higher"] },
+            "previous_north_south_green": { "type": "integer", "minimum": 1 },
+            "new_north_south_green": { "type": "integer", "minimum": 1 },
+            "previous_east_west_green": { "type": "integer", "minimum": 1 },
+            "new_east_west_green": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "count": { "type": "integer", "minimum": 0 },
+    "light": { "enum": ["red", "yellow", "green"] },
+    "phase": { "enum": ["north_south_green", "north_south_yellow", "all_red_to_east_west", "east_west_green", "east_west_yellow", "all_red_to_north_south"] }
+  },
+  "additionalProperties": true
+}
