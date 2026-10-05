@@ -18,17 +18,17 @@ typedef enum {
 
 static void usage(const char *program) {
     fprintf(stderr,
-        "用法: sudo %s --model /opt/bitnet <prompt 来源> [选项]\n"
-        "prompt 来源（必须且只能选择一个）:\n"
-        "  --prompt TEXT       命令行单次推理\n"
-        "  --prompt-file PATH  从 UTF-8 文件读取一次\n"
-        "  --stdio             按行持续处理，适合 SSH 管道或串口\n"
-        "生成选项:\n"
-        "  --tokens N          生成 token 数，默认 8\n"
-        "  --layers N          运行层数，默认 30\n"
-        "  --temperature N     温度千分值，默认 0\n"
-        "  --top-k N           默认 1\n"
-        "  --prefill-batch N   Prefill GEMM 分块行数，支持 1..16，默认 16\n",
+        "Usage: sudo %s --model /opt/bitnet <prompt source> [options]\n"
+        "Prompt source (select exactly one):\n"
+        "  --prompt TEXT       Run one inference from the command line\n"
+        "  --prompt-file PATH  Read one UTF-8 prompt file\n"
+        "  --stdio             Process one prompt per line from SSH or UART\n"
+        "Generation options:\n"
+        "  --tokens N          Number of generated tokens, default 8\n"
+        "  --layers N          Number of layers, default 30\n"
+        "  --temperature N     Temperature in milli-units, default 0\n"
+        "  --top-k N           Top-k value, default 1\n"
+        "  --prefill-batch N   Prefill GEMM rows, 1..16, default 16\n",
         program);
 }
 
@@ -37,7 +37,7 @@ static uint32_t parse_u32(const char *name, const char *value) {
     unsigned long parsed = strtoul(value, &end, 10);
 
     if (!value[0] || !end || *end || parsed > UINT32_MAX) {
-        fprintf(stderr, "%s 参数无效: %s\n", name, value);
+        fprintf(stderr, "%s has an invalid value: %s\n", name, value);
         exit(2);
     }
     return (uint32_t)parsed;
@@ -45,7 +45,7 @@ static uint32_t parse_u32(const char *name, const char *value) {
 
 static int set_prompt_mode(PromptMode *mode, PromptMode requested) {
     if (*mode != PROMPT_NONE) {
-        fprintf(stderr, "只能指定一种 prompt 来源\n");
+        fprintf(stderr, "Select exactly one prompt source\n");
         return -1;
     }
     *mode = requested;
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
         return 2;
     }
     if (bitnet_linux_runtime_init(model_root) != 0) {
-        fprintf(stderr, "Linux FPGA 运行时初始化失败\n");
+        fprintf(stderr, "Linux FPGA runtime initialization failed\n");
         return 1;
     }
 

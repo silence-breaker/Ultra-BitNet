@@ -21,17 +21,17 @@ int bitnet_prompt_read_file(const char *path, char *buffer, size_t capacity,
     }
     file = fopen(path, "rb");
     if (!file) {
-        fprintf(stderr, "无法打开 prompt 文件 %s: %s\n", path, strerror(errno));
+        fprintf(stderr, "Cannot open prompt file %s: %s\n", path, strerror(errno));
         return -1;
     }
     count = fread(buffer, 1u, capacity, file);
     if (ferror(file)) {
-        fprintf(stderr, "读取 prompt 文件 %s 失败\n", path);
+        fprintf(stderr, "Failed to read prompt file %s\n", path);
         fclose(file);
         return -1;
     }
     if (count == capacity && fgetc(file) != EOF) {
-        fprintf(stderr, "prompt 文件超过 %lu 字节\n", (unsigned long)capacity);
+        fprintf(stderr, "Prompt file exceeds %lu bytes\n", (unsigned long)capacity);
         fclose(file);
         return -1;
     }
@@ -63,7 +63,7 @@ int bitnet_prompt_read_line(FILE *stream, char *buffer, size_t capacity,
         }
         while ((ch = fgetc(stream)) != '\n' && ch != EOF) {
         }
-        fprintf(stderr, "prompt 行超过 %lu 字节，已丢弃\n",
+        fprintf(stderr, "Prompt line exceeds %lu bytes and was discarded\n",
                 (unsigned long)capacity);
         return -1;
     }

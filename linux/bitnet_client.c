@@ -43,7 +43,7 @@ int bitnet_client_infer(const char *prompt, size_t prompt_length,
     if (result != 0 || output->magic != BITNET_INFER_OUTPUT_MAGIC ||
         output->version != BITNET_INFER_OUTPUT_VERSION ||
         output->byte_count > BITNET_INFER_OUTPUT_MAX_BYTES) {
-        fprintf(stderr, "推理失败: result=%d output_magic=0x%08x\n",
+        fprintf(stderr, "Inference failed: result=%d output_magic=0x%08x\n",
                 result, output->magic);
         return -1;
     }

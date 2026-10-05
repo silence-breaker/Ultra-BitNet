@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""
-test_client.py — 在PC上模拟复旦微板卡，向AXU3EGB发送JSON推理请求
-用法: python3 test_client.py <板卡IP> [端口]
-示例: python3 test_client.py 192.168.1.100 8765
+"""Send sample JSON inference requests to the board-side TCP endpoint.
+
+Usage: python3 test_client.py <board-host> [port]
+Example: python3 test_client.py 127.0.0.1 8765
 """
 
 import json
@@ -14,7 +14,7 @@ def send_request(host: str, port: int, payload: dict) -> dict:
         s.settimeout(360)
         s.connect((host, port))
         s.sendall(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
-        s.shutdown(socket.SHUT_WR)   # 告知服务端发送完毕
+        s.shutdown(socket.SHUT_WR)   # Signal end of request data.
         raw = b""
         while True:
             chunk = s.recv(4096)
@@ -27,10 +27,10 @@ def main():
     host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 8765
 
-    # 模拟复旦微板卡发来的交通感知JSON
+    # Use one domain payload and one generic English payload.
     test_cases = [
         {
-            "prompt": "交通摄像头检测到：车辆数量12，行人数量3，平均车速45km/h，请分析当前路口交通状态并给出建议。",
+            "prompt": "A traffic camera detected 12 vehicles, 3 pedestrians, and an average speed of 45 km/h. Analyze the intersection and provide advice.",
             "tokens": 64,
             "temperature": 600,
             "top_k": 40,
@@ -44,15 +44,15 @@ def main():
     ]
 
     for i, payload in enumerate(test_cases):
-        print(f"\n=== 测试 {i+1} ===")
-        print(f"发送: {json.dumps(payload, ensure_ascii=False)[:120]}")
+        print(f"\n=== Test {i+1} ===")
+        print(f"Request: {json.dumps(payload, ensure_ascii=False)[:120]}")
         try:
             response = send_request(host, port, payload)
-            print(f"状态: {response.get('status')}")
-            print(f"文本: {response.get('text', '')}")
-            print(f"Token数: {response.get('token_count', 0)}")
+            print(f"Status: {response.get('status')}")
+            print(f"Text: {response.get('text', '')}")
+            print(f"Token count: {response.get('token_count', 0)}")
         except Exception as e:
-            print(f"错误: {e}")
+            print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()

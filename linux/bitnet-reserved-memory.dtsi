@@ -1,4 +1,4 @@
-/* 必须合并进基础设备树并在启动 Linux 前生效，不能在系统启动后动态加载。 */
+/* Merge into the base device tree before Linux boots; runtime loading is too late. */
 / {
     reserved-memory {
         #address-cells = <2>;
