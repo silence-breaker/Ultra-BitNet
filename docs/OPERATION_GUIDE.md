@@ -44,7 +44,7 @@ python3 tools/export_layer_bundle.py \
   --output /path/to/BITNET
 ```
 
-The exact exporter options may vary with the model revision. Record the model version, source URL, license, and SHA-256 in a release-specific manifest. Never commit model weights, tokenizer files, generated BIN files, or access tokens.
+The exact exporter options may vary with the model revision. Record the model version, source URL, and license in a release-specific manifest. Never commit model weights, tokenizer files, generated BIN files, or access tokens.
 
 ## 5. Hardware reconstruction
 
@@ -120,8 +120,6 @@ For each board result, record:
 
 - repository commit and hardware script revision;
 - board/device and Vivado/Vitis version;
-- bitstream/XSA SHA-256;
-- model manifest and tokenizer SHA-256;
 - PL clock, DMA width, Attention lane count, and DDR configuration;
 - prompt token count, generated token count, prefill/decode timing, temperature, and top-k;
 - temperature, power, and any reset/recovery events.

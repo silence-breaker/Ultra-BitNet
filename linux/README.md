@@ -20,7 +20,7 @@ firmware/bitnet_accel.bit.bin
 model/BITNET.tar (optional when the model is installed separately)
 ```
 
-The bitstream and model must match the XSA, PS initialization, memory map, and model manifest. They are not committed to this repository. Download them from a versioned release, verify SHA-256, then run:
+The bitstream and model must match the XSA, PS initialization, memory map, and model manifest. They are not committed to this repository. Download them from a versioned release, then run:
 
 ```bash
 sudo ./install.sh

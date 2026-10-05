@@ -11,7 +11,6 @@ formats are firmware-specific (token trie, BF16 embeddings, LM-head shards, AUX)
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -29,14 +28,6 @@ MATRICES = {
     "UP.BIN": "mlp.up_proj.weight",
     "DOWN.BIN": "mlp.down_proj.weight",
 }
-
-
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def repack_hf_to_pl(packed: np.ndarray) -> np.ndarray:
@@ -83,7 +74,6 @@ def main() -> None:
 
     report: dict[str, object] = {
         "checkpoint": str(checkpoint),
-        "checkpoint_sha256": sha256(checkpoint),
         "layout": "four-consecutive-output-channels-per-byte",
         "matrices": [],
     }
@@ -103,7 +93,6 @@ def main() -> None:
                     "tensor": key,
                     "shape": list(rebuilt.shape),
                     "bytes": target.stat().st_size,
-                    "sha256": sha256(target),
                 }
                 if args.compare:
                     previous = args.compare.resolve() / f"L{layer:02d}" / filename

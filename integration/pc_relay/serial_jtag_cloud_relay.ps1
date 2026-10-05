@@ -27,7 +27,6 @@ $Python = if ($env:BITNET_PYTHON) { $env:BITNET_PYTHON } else { (Get-Command pyt
 $OfficialModel = if ($env:BITNET_MODEL) { $env:BITNET_MODEL } else { Join-Path $BundleRoot 'models\official_model' }
 if (-not (Test-Path -LiteralPath $InferScript)) { throw "Missing inference script. Set BITNET_INFER_SCRIPT or provide integration/jtag/scripts/run_bitnet_inference_smoke.tcl" }
 if (-not (Test-Path -LiteralPath $OfficialModel)) { throw "Missing model directory. Set BITNET_MODEL to a licensed local model path" }
-$AuditLog = Join-Path $RelayTemp 'live_bitnet_audit.jsonl'
 $Prefix = 'ICRAFT_JSON:'
 $Sequence = 0
 $Port = [System.IO.Ports.SerialPort]::new($PortName, 115200, 'None', 8, 'One')
@@ -127,8 +126,8 @@ try {
         # A real accident report preempts an in-flight normal-flow pass. The
         # TCL script performs a full PS/PL reset at every start, so the next
         # pass safely reinitializes all mailboxes after cancellation.
-        $InferStdout = Join-Path (Split-Path -Parent $AuditLog) 'xsdb_infer_stdout.log'
-        $InferStderr = Join-Path (Split-Path -Parent $AuditLog) 'xsdb_infer_stderr.log'
+        $InferStdout = Join-Path $RelayTemp 'xsdb_infer_stdout.log'
+        $InferStderr = Join-Path $RelayTemp 'xsdb_infer_stderr.log'
         $XsdbCommand = ('call {0} {1} {2} {3} 1 3 {4}' -f
             $Xsdb, $InferScript, $TempPayload, $TokenBytes, $SchemaPayload)
         $InferProcess = Start-Process -FilePath $env:ComSpec `
@@ -238,7 +237,6 @@ try {
         if ([string]::IsNullOrWhiteSpace($OutputHex) -or ($OutputHex.Length % 2) -ne 0 -or
             $OutputHex.Length -ne ($DeclaredBytes * 2)) {
             Write-Warning "Invalid BitNet output hex length for sequence $Sequence (declared_bytes=$DeclaredBytes hex_chars=$($OutputHex.Length)); cloud send suppressed"
-            Add-Content -LiteralPath $AuditLog -Value (([ordered]@{timestamp=(Get-Date).ToString('o');sequence=$Sequence;kind='hex_length_error';declared_bytes=$DeclaredBytes;hex_chars=$OutputHex.Length;ack_tail=$AckText.Substring([math]::Max(0,$AckText.Length-512))}|ConvertTo-Json -Compress)) -Encoding UTF8
             continue
         }
         $OutputBytes = [byte[]]::new($OutputHex.Length / 2)
@@ -274,12 +272,6 @@ try {
         if ($VehicleCountMatch.Success) {
             $BitnetPayload.traffic_overview = "The intersection has $($VehicleCountMatch.Groups[1].Value) northbound vehicles counted in the current traffic flow."
         }
-        $Sha256 = [System.Security.Cryptography.SHA256]::Create()
-        try {
-            $InputHash = -join ($Sha256.ComputeHash($Bytes) | ForEach-Object { $_.ToString('x2') })
-        } finally {
-            $Sha256.Dispose()
-        }
         $CloudPayload = $BitnetPayload
         $CloudJson = $CloudPayload | ConvertTo-Json -Compress -Depth 8
         $Client = [System.Net.Sockets.TcpClient]::new($CloudHost, $CloudPort)
@@ -289,20 +281,6 @@ try {
             $Stream.Write($Wire, 0, $Wire.Length)
             $Stream.Flush()
         } finally { $Client.Dispose() }
-        $AuditRecord = [ordered]@{
-            received_at = (Get-Date).ToString('o')
-            source_timestamp = [string]$Payload.timestamp
-            sequence = $Sequence
-            input_sha256 = $InputHash
-            input_bytes = $Bytes.Length
-            has_event = [bool]$Payload.event.has_event
-            event_type = [string]$Payload.event.event_type
-            vehicle_summary = [string]$Payload.vehicle_summary
-            output_magic = '0x314F4942'
-            output_tokens = [int]$TokenMatch.Groups[1].Value
-            bitnet_output = $BitnetText
-        }
-        Add-Content -LiteralPath $AuditLog -Value ($AuditRecord | ConvertTo-Json -Compress -Depth 6) -Encoding UTF8
         Write-Host "Forwarded verified BitNet sequence=$Sequence source_time=$($Payload.timestamp) vehicles='$($Payload.vehicle_summary)' event=$($Payload.event.event_type) output_tokens=$($TokenMatch.Groups[1].Value) output=$BitnetText"
     }
 } finally {

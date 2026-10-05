@@ -101,21 +101,6 @@ try {
     if (-not (Test-Path -LiteralPath $PackagedBitBin)) {
         throw "FPGA Manager firmware missing after bootgen: $PackagedBitBin"
     }
-    $HashFiles = Get-ChildItem -Recurse -File | Where-Object { $_.Name -ne "SHA256SUMS" }
-    $HashLines = foreach ($File in $HashFiles) {
-        $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $File.FullName).Hash.ToLowerInvariant()
-        # Windows PowerShell 5.1 runs on .NET Framework, which does not expose
-        # Path.GetRelativePath().  Every hashed file is enumerated below the
-        # normalized output directory, so a checked prefix removal is enough
-        # and also keeps the manifest paths portable for Linux sha256sum.
-        if (-not $File.FullName.StartsWith($OutputDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
-            throw "Package file escaped output directory: $($File.FullName)"
-        }
-        $Relative = $File.FullName.Substring($OutputDirectory.Length).
-            TrimStart([char[]]'\/').Replace('\', '/')
-        "$Hash  $Relative"
-    }
-    [System.IO.File]::WriteAllLines("$OutputDirectory/SHA256SUMS", $HashLines, [System.Text.UTF8Encoding]::new($false))
 } finally {
     if ($null -eq $PreviousProcessorArchitecture) {
         Remove-Item Env:PROCESSOR_ARCHITECTURE -ErrorAction SilentlyContinue

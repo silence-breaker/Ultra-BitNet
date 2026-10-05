@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import hashlib
 import json
 import os
 import time
@@ -23,7 +22,6 @@ def tensor_stats(value: torch.Tensor) -> dict:
         "mean": float(flat.mean()),
         "rms": float(torch.sqrt(torch.mean(flat * flat))),
         "absmax": float(flat.abs().max()),
-        "sha256_f32": hashlib.sha256(data.numpy().tobytes()).hexdigest(),
     }
     if data.ndim >= 2:
         last = data.reshape(-1, data.shape[-1])[-1]

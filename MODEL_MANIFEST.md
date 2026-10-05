@@ -7,7 +7,6 @@ name: <model name>
 version: <version>
 source: <upstream URL or release ID>
 license: <model license>
-sha256: <sha256>
 layout: BITNET/L00..L29 + tokenizer + RoPE + AUX
 converter: tools/export_layer_bundle.py
 ```
