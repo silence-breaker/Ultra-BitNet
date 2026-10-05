@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Ultra BitNet logo</title>
+  <desc id="desc">A futuristic FPGA chip mark containing a binary BitNet core and acceleration arrow.</desc>
+  <defs>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#19d3c5"/>
+      <stop offset="1" stop-color="#4a7dff"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d8fff8"/>
+      <stop offset="1" stop-color="#78a4ff"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Dark field keeps the mark readable on documentation and repository avatars. -->
+  <rect width="1024" height="1024" rx="192" fill="#071321"/>
+
+  <!-- FPGA pins and board traces. -->
+  <g fill="none" stroke="url(#edge)" stroke-width="18" stroke-linecap="round" opacity=".9">
+    <path d="M278 180v-62M370 180v-62M462 180v-62M554 180v-62M646 180v-62M738 180v-62"/>
+    <path d="M278 844v62M370 844v62M462 844v62M554 844v62M646 844v62M738 844v62"/>
+    <path d="M180 278h-62M180 370h-62M180 462h-62M180 554h-62M180 646h-62M180 738h-62"/>
+    <path d="M844 278h62M844 370h62M844 462h62M844 554h62M844 646h62M844 738h62"/>
+  </g>
+
+  <!-- Chip body. -->
+  <rect x="180" y="180" width="664" height="664" rx="92" fill="#0d2234" stroke="url(#edge)" stroke-width="22"/>
+  <path d="M278 278h468v468H278z" fill="none" stroke="#1c4962" stroke-width="8"/>
+
+  <!-- Binary core: two interlocking bit columns. -->
+  <g filter="url(#glow)" fill="url(#core)">
+    <path d="M352 352h82c34 0 62 28 62 62v48c0 25-13 47-34 58 21 11 34 33 34 58v32c0 34-28 62-62 62h-82c-34 0-62-28-62-62v-46h62v36c0 6 5 10 10 10h42c6 0 10-4 10-10v-44c0-6-4-10-10-10h-72v-62h72c6 0 10-4 10-10v-42c0-6-4-10-10-10h-42c-5 0-10 4-10 10v34h-62v-46c0-34 28-62 62-62z"/>
+    <path d="M568 352h82c34 0 62 28 62 62v54h-62v-38c0-6-4-10-10-10h-42c-6 0-10 4-10 10v44c0 6 4 10 10 10h72c34 0 62 28 62 62v96c0 34-28 62-62 62h-82c-34 0-62-28-62-62v-54h62v38c0 6 4 10 10 10h42c6 0 10-4 10-10v-44c0-6-4-10-10-10h-72c-34 0-62-28-62-62v-96c0-34 28-62 62-62z"/>
+  </g>
+
+  <!-- Forward arrow signals low-latency acceleration. -->
+  <path d="M304 760h290l-42-42 34-34 112 112-112 112-34-34 42-42H304z" fill="#d8fff8"/>
+  <circle cx="756" cy="256" r="16" fill="#19d3c5"/>
+  <circle cx="794" cy="294" r="10" fill="#4a7dff"/>
+</svg>
