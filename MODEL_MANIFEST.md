@@ -1,6 +1,6 @@
 # Model Manifest
 
-模型权重不提交到源码仓库。发布模型时请填写以下字段：
+Model weights are not committed to the source repository. Fill in the following fields for each model release:
 
 ```text
 name: <model name>
@@ -12,4 +12,4 @@ layout: BITNET/L00..L29 + tokenizer + RoPE + AUX
 converter: tools/export_layer_bundle.py
 ```
 
-推荐通过 GitHub Release 或 Git LFS 分发，并在 Release 说明中提供板卡型号、所需 DDR 容量和转换命令。
+Distribute models through a GitHub Release or Git LFS. The release notes must include the board model, required DDR capacity, and conversion command.

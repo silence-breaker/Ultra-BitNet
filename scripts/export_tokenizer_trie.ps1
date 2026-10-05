@@ -10,12 +10,7 @@ $outFile = Join-Path $rootDir "build/emmc/BITNET/TOK/TRIE.BIN"
 if ($env:BITNET_TOKENIZER_JSON) {
     $tokenizerJson = $env:BITNET_TOKENIZER_JSON
 } else {
-    $contestDir = "G:/" +
-        [char]0x96C6 + [char]0x521B + [char]0x533A + [char]0x57DF +
-        [char]0x603B + [char]0x51B3 + [char]0x8D5B
-    $deployDir = "AXU3EGB" +
-        [char]0x6A21 + [char]0x578B + [char]0x90E8 + [char]0x7F72
-    $tokenizerJson = Join-Path $contestDir (Join-Path $deployDir "bitnet-b1.58-2B-4T-deploy/tokenizer.json")
+    throw "Set BITNET_TOKENIZER_JSON to the licensed tokenizer.json path before running this exporter."
 }
 
 if (-not (Test-Path $exportTool)) {

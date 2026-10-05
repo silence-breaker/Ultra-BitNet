@@ -1,6 +1,7 @@
 @echo off
 setlocal
 if not defined PROCESSOR_ARCHITECTURE set "PROCESSOR_ARCHITECTURE=AMD64"
-call "G:\Vivado_2020.1\Vitis\2020.1\settings64.bat"
+if not defined VITIS_SETTINGS (echo Set VITIS_SETTINGS to the tool settings64.bat path before running this script. & exit /b 2)
+call "%VITIS_SETTINGS%"
 xsct "%~dp0generate_linux_device_tree.tcl"
 exit /b %ERRORLEVEL%

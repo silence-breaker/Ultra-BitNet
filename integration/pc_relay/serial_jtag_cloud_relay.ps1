@@ -15,16 +15,18 @@ $env:TMP = $RelayTemp
 if (-not (Test-Path -LiteralPath $env:TEMP -PathType Container)) {
     throw "Relay temporary directory is unavailable: $env:TEMP"
 }
-$Xsdb = 'D:\icraft2\2025.2\Vitis\bin\xsdb.bat'
-$InferScript = Join-Path $BundleRoot 'jtag\scripts\run_bitnet_inference_smoke.tcl'
+$Xsdb = if ($env:BITNET_XSDB) { $env:BITNET_XSDB } else { 'xsdb' }
+$InferScript = if ($env:BITNET_INFER_SCRIPT) { $env:BITNET_INFER_SCRIPT } else { Join-Path $BundleRoot 'jtag\scripts\run_bitnet_inference_smoke.tcl' }
 $TempPayload = Join-Path $RelayTemp 'current_payload.bin'
 $TempPrompt = Join-Path $RelayTemp 'current_prompt.txt'
 $TokenizerScript = Join-Path $PSScriptRoot 'tokenize_prompt_u32.py'
 $SchemaScript = Join-Path $PSScriptRoot 'build_schema_mailbox.py'
 $SchemaInput = Join-Path $RelayTemp 'current_report.json'
 $SchemaPayload = Join-Path $RelayTemp 'current_schema.bin'
-$Python = 'D:\2\envs\wlycf\python.exe'
-$OfficialModel = (Join-Path $PSScriptRoot '..\models\official_model' | Resolve-Path).Path
+$Python = if ($env:BITNET_PYTHON) { $env:BITNET_PYTHON } else { (Get-Command python -ErrorAction Stop).Source }
+$OfficialModel = if ($env:BITNET_MODEL) { $env:BITNET_MODEL } else { Join-Path $BundleRoot 'models\official_model' }
+if (-not (Test-Path -LiteralPath $InferScript)) { throw "Missing inference script. Set BITNET_INFER_SCRIPT or provide integration/jtag/scripts/run_bitnet_inference_smoke.tcl" }
+if (-not (Test-Path -LiteralPath $OfficialModel)) { throw "Missing model directory. Set BITNET_MODEL to a licensed local model path" }
 $AuditLog = Join-Path $RelayTemp 'live_bitnet_audit.jsonl'
 $Prefix = 'ICRAFT_JSON:'
 $Sequence = 0
@@ -121,7 +123,7 @@ try {
         $Sequence++
         # One generated token is sufficient to prove the full BitNet pass;
         # the board-side constrained decoder then commits the five-field JSON.
-        # Run XSDB asynchronously so COM7 remains monitored during inference.
+        # Run XSDB asynchronously so the serial port remains monitored during inference.
         # A real accident report preempts an in-flight normal-flow pass. The
         # TCL script performs a full PS/PL reset at every start, so the next
         # pass safely reinitializes all mailboxes after cancellation.
