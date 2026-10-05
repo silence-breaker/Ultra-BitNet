@@ -21,9 +21,14 @@ cache/
 *.xsa
 *.tar
 *.safetensors
+!models/official_model/*.safetensors
 *.jsonl
 tmp/
 logs/
 database/
+# Keep the validated release model under models/official_model when it is
+# intentionally included in a complete deployment bundle.
 model/
-models/
+models/*
+!models/official_model/
+!models/official_model/**
