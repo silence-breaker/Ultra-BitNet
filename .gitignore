@@ -1,0 +1,12 @@
+/src/target/
+/src/project/target/
+/src/project/project/
+/src/.bsp/
+/src/.metals/
+/src/simWorkspace/
+/src/build/
+/build/*
+!/build/ultra_bitnet_tp2.bit
+*.log
+*.jou
+.Xil/
