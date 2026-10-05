@@ -1,27 +1,32 @@
 # Ultra-BitNet
 
-面向 AXU3EGB（XCZU3EG-1SFVC784I）的 BitNet 推理加速器，使用 Scala / SpinalHDL 描述硬件。当前板级配置为 TP2、单物理矩阵引擎、四路 SPU 与五路 PS DDR 访问接口，控制域和计算域分别运行在 50 MHz 与 100 MHz。
+A Scala / SpinalHDL BitNet inference accelerator for AXU3EGB (XCZU3EG-1SFVC784I). The released board configuration uses TP2, one physical matrix engine, four SPUs, and five interfaces to shared PS DDR. Control and memory run at 50 MHz; compute runs at 100 MHz.
 
-## 仓库结构
+## Repository
 
-- `doc/`：架构说明、构建说明及架构图资源。
-- `src/main/scala/ultrabitnet/accel/`：板级顶层及其依赖的 Scala 源码。
-- `src/vivado/`：AXU3EGB 工程、分阶段实现和时序收敛脚本。
-- `build/ultra_bitnet_tp2.bit`：已完成布局布线和位流生成的板级镜像。
+- `doc/`: architecture, build instructions, and architecture diagram assets.
+- `src/main/scala/ultrabitnet/accel/`: board-level hardware and its dependencies.
+- `src/vivado/`: board integration, implementation, and timing-closure scripts.
+- `src/software/`: portable C runtime, Linux MMIO backend and CLI, model-image tools, and tests.
+- `build/ultra_bitnet_tp2.bit`: released board bitstream.
 
-## 生成 RTL
+## Build
 
-使用 JDK 17、sbt 1.10.7、Scala 2.12.18 和 SpinalHDL 1.11.0：
+Generate RTL with JDK 17, sbt 1.10.7, Scala 2.12.18, and SpinalHDL 1.11.0:
 
-```powershell
+```sh
 cd src
 sbt compile generateBoardRtl
 ```
 
-生成入口为 `ultrabitnet.accel.GenerateBitNetResidentBoardAccelerator`，输出为 `build/rtl/BitNetResidentBoardAccelerator.v`。首次运行 sbt 需要下载依赖。
+The entry point is `ultrabitnet.accel.GenerateBitNetResidentBoardAccelerator`; output is `build/rtl/BitNetResidentBoardAccelerator.v`. The first build downloads dependencies.
 
-## 设计说明
+Build and test the Linux software from the repository root:
 
-见 [加速器架构](doc/ARCHITECTURE.md) 和 [构建与实现](doc/BUILD.md)。源码和位流使用 BSD-3-Clause 许可证，详见 [LICENSE](LICENSE)。
+```sh
+make -C src/software test
+```
 
-现有位流的 setup/hold 最差裕量为 `+1.291 / +0.008 ns`，可布线网络全部完成。完整模型数值验证、配套软件集成和板上推理仍需单独验证，当前没有板测 token/s 数据。
+See [Architecture](doc/ARCHITECTURE.md) and [Build and Deployment](doc/BUILD.md) for hardware integration, reserved-memory requirements, model loading, and prefill/decode commands. Software tests use mocked or file-backed MMIO and do not require a board.
+
+The released implementation reported setup/hold margins of `+1.291 / +0.008 ns` with all routable nets routed. Source and bitstream licensing is described in [LICENSE](LICENSE).

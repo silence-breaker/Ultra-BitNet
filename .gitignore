@@ -5,8 +5,9 @@
 /src/.metals/
 /src/simWorkspace/
 /src/build/
-/build/*
-!/build/ultra_bitnet_tp2.bit
+/build/*/
 *.log
 *.jou
 .Xil/
+__pycache__/
+*.py[cod]

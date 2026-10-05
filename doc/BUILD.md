@@ -1,10 +1,8 @@
-# 构建与实现
+# Build and Deployment
 
-## Scala 到板级 RTL
+## Scala to Board RTL
 
-工具版本为 JDK 17、sbt 1.10.7、Scala 2.12.18、SpinalHDL 1.11.0，版本定义在 `src/build.sbt` 和 `src/project/build.properties`。
-
-从仓库根目录执行：
+Use JDK 17, sbt 1.10.7, Scala 2.12.18, and SpinalHDL 1.11.0. Versions are defined in `src/build.sbt` and `src/project/build.properties`. From the repository root:
 
 ```powershell
 Set-Location src
@@ -12,32 +10,125 @@ sbt compile generateBoardRtl
 Set-Location ..
 ```
 
-板级入口为 `ultrabitnet.accel.GenerateBitNetResidentBoardAccelerator`。生成文件为 `build/rtl/BitNetResidentBoardAccelerator.v`。源码中其他 `Generate...` 入口服务于局部研究或模块验证，不是发布镜像的板级入口。
+The board entry point is `ultrabitnet.accel.GenerateBitNetResidentBoardAccelerator`; output is `build/rtl/BitNetResidentBoardAccelerator.v`. Other `Generate...` entry points support local research or module verification and are not the released board top.
 
-## Vivado 板级工程
+## Vivado Board Project
 
-最终镜像由 Vivado 2025.2 在 `xczu3eg-sfvc784-1-i` 上实现。`src/vivado/board/design_1_bd.tcl` 提供 AXU3EGB PS 配置，板级脚本连接 50/100 MHz MMCM、复位、AXI-Lite SmartConnect、五路 DDR 端口和 IRQ。
+The released image was implemented with Vivado 2025.2 for `xczu3eg-sfvc784-1-i`. `src/vivado/board/design_1_bd.tcl` supplies the AXU3EGB PS configuration. Board scripts connect the 50/100 MHz MMCM, resets, AXI-Lite SmartConnect, five DDR ports, and IRQ.
 
-生成 RTL 后，可从仓库根目录创建新的工程：
+After generating RTL, create a project from the repository root:
 
 ```powershell
 vivado -mode batch -source src/vivado/build_bitnet_axu3egb_board.tcl -tclargs project
 ```
 
-默认工程位于 `build/vivado-bitnet-r10-tp2-board/`。输出目录已存在时脚本拒绝覆盖，使用新的目录作为第二个 Tcl 参数。脚本还保留 `synth`、`impl`、`bitstream` 和 `xsa` 阶段。自动实现阶段的策略不保证重现已发布镜像的布局与时序，最终镜像曾经过分阶段 hold 收敛。
+The default directory is `build/vivado-bitnet-r10-tp2-board/`. An existing output directory is never overwritten; supply a new directory as the second Tcl argument. The script also supports `synth`, `impl`, `bitstream`, and `xsa`. Automated implementation is not guaranteed to reproduce the released placement or timing: the release used staged hold closure.
 
-## 分阶段收敛
+`stitch_bitnet_axu3egb_board_checkpoint.tcl` merges partition DCPs and restores XDC scope. `implement_bitnet_axu3egb_board_checkpoint.tcl` accepts `BITNET_BOARD_IMPL_IN`, `BITNET_BOARD_IMPL_OUT`, and `BITNET_BOARD_IMPL_STAGE` for input checkpoint, output directory, and `place`, `route`, or `bitstream`.
 
-`stitch_bitnet_axu3egb_board_checkpoint.tcl` 合并各分区 DCP 并恢复 XDC scope。`implement_bitnet_axu3egb_board_checkpoint.tcl` 使用 `BITNET_BOARD_IMPL_IN`、`BITNET_BOARD_IMPL_OUT` 和 `BITNET_BOARD_IMPL_STAGE` 指定输入 DCP、输出目录及 `place`、`route` 或 `bitstream` 阶段。
+The validated route performed full routing, applied protocol-specific hold treatment with `close_bitnet_axu3egb_board_hold.tcl`, then used `retry_bitnet_axu3egb_board_hold.tcl` in `route_aggressive` mode for `AggressiveExplore` routing and `ExploreWithHoldFix`.
 
-已验证路线先进行完整路由，再由 `close_bitnet_axu3egb_board_hold.tcl` 应用协议相关的 hold 处理，最后通过 `retry_bitnet_axu3egb_board_hold.tcl` 的 `route_aggressive` 模式执行 `AggressiveExplore` 路由和 `ExploreWithHoldFix`。
+These scripts check input clocks, hierarchy, and paths. The hold flow includes slow/fast direction-level hold exceptions and classified SmartConnect pin-pair exceptions that depend on the current mailbox protocol. Reassess them after any CDC change or new cross-domain path; they are not general-purpose timing fixes. Retain applicable setup, max-delay, and bus-skew checks.
 
-这些脚本保留输入时钟、层次和路径检查。原 hold 流程包含 slow/fast 时钟方向级 hold exception，以及经过分类检查的 SmartConnect pin-pair hold exception；它们依赖当前 mailbox 协议。修改 CDC 或引入新跨域路径时必须重新审查，不能把 exception 当成通用的时序修复方法。setup、max-delay 和 bus-skew 的适用检查仍须保留。
+Before generating a new bitstream, require complete routing, nonnegative WNS/WHS, explained CDC/check_timing results, and passing pre-bitstream DRC. The released file is `build/ultra_bitnet_tp2.bit`. Source, tools, or strategy changes require sign-off against new reports.
 
-位流生成前需确认完全路由、WNS/WHS 非负、CDC/check_timing 无未解释问题，并通过 `write_bitstream` 前置 DRC。已发布位流直接存放于 `build/ultra_bitnet_tp2.bit`，无需重新综合即可用于配套板级验证。
+## Linux Software Build
 
-## 发布镜像与重建结果
+The software uses a C11 compiler, Make, and Python 3.10 or newer; no third-party Python packages are needed. Native build and tests on Linux, from the repository root:
 
-发布位流可直接用于匹配板级配置的验证。源码、工具版本和实现策略的变化可能影响重新生成的位流；重新布局布线后的签核须按新的报告执行。
+```sh
+make -C src/software test
+build/software/bitnetctl --help
+```
 
-仓库不包含模型权重、PS 软件运行镜像、Vivado DCP 和工具缓存。
+Outputs are `build/software/bitnetctl` and `build/software/libbitnet.a`. The public protocol API is `src/software/include/bitnet.h`. An application can link the library with its own MMIO callbacks, or compile `bitnet_linux.c` for the supplied backend.
+
+Cross-build for an AArch64 Linux board with its matching SDK/sysroot:
+
+```sh
+make -C src/software all CC=aarch64-linux-gnu-gcc AR=aarch64-linux-gnu-ar OUT=../../build/software-aarch64
+```
+
+Do not run cross-built tests on an x86 host. Use `make test` natively on the board, or run the host suite separately. Deploy the AArch64 executable and `src/software/tools/` to the board. Example commands below assume a repository checkout and a natively built executable on the board.
+
+## Board Prerequisites
+
+The `.bit` file alone is not a Linux boot image. Boot firmware must initialize the matching PS DDR and clocks; Linux must use a board-specific device tree. Program the PL using the board's supported JTAG or FPGA-manager flow. Linux FPGA-manager deployments may require a converted `.bin`; do not assume it accepts a raw `.bit`.
+
+Merge `src/software/linux/bitnet-uio.dtsi` into the board device tree before boot. It reserves the half-open physical DDR range `[0x800000000, 0x860000000)` (1.5 GiB) with `no-map`, and exposes the `0x80000000` control window through generic UIO. Confirm that the board actually has this physical DDR range and that no firmware, DMA buffer, or Linux allocation uses it. High and low DDR aliases may refer to the same storage on ZynqMP: verify the PS address map and remove any corresponding low alias from OS use too. Do not run the loader until ownership is established.
+
+Enable `CONFIG_UIO` and `CONFIG_UIO_PDRV_GENIRQ`. Where required by the kernel, use `uio_pdrv_genirq.of_id=generic-uio` as a boot/module parameter. The runtime polls, so no interrupt is required in this fragment. Confirm the generated node name, map address, and size under `/sys/class/uio/`; substitute the actual UIO device in every command if it is not `/dev/uio0`.
+
+The loader needs root access to `/dev/mem` and kernel permission to map the reserved region. Its `O_SYNC` mapping must be uncached on the target kernel; validate the memory attributes in the board BSP. If the BSP prohibits this mapping or cannot guarantee coherent visibility to all HP/HPC ports, supply a reserved-memory kernel mapping/loader with explicit synchronization instead. Do not map ordinary Linux-managed RAM or bypass its cache ownership.
+
+```sh
+sudo build/software/bitnetctl probe --uio /dev/uio0
+sudo build/software/bitnetctl status --uio /dev/uio0
+```
+
+Identity must be `0x48425432`. Both commands are read-only. UIO access and image loading share an exclusive device-file lock. All clients must use the same UIO node; do not mix UIO and `/dev/mem` control backends concurrently, because their locks are on different files.
+
+## Model Images and Loading
+
+Provide an already exported model package matching the fixed production dimensions. It contains `MANIFEST.TXT`, layer weight files under `L00/` through `L29/`, BF16 embedding shards `EMB/E00.BIN` onward, LM shards under `LMH/`, and auxiliary/RoPE/tokenizer assets referenced by the manifest. This repository does not include model weights or a training-model exporter. Raw checkpoint files are not accepted directly.
+
+The released compute path requires Map0 ternary codes `1=-1`, `2=0`, `3=1`. The image builder rejects other codebooks instead of silently changing weight interpretation. It validates manifest geometry, headers, payload sizes, and paths, then stripes weights across five banks and initializes KV regions. Structural metadata is stored in `layout.json`.
+
+```sh
+python3 src/software/tools/build_image.py /data/BITNET /data/bitnet-images
+```
+
+Choose a new output directory; existing images are not overwritten. Expect approximately 1.02 GB of bank files, in addition to the source model package.
+
+| Image / Region | Physical Base | Bytes Written |
+| --- | --- | ---: |
+| bank0.bin, HPC0 | `0x850000000` | 204833664 |
+| bank1.bin, HP0 | `0x800000000` | 204833664 |
+| bank2.bin, HP1 | `0x810000000` | 204833664 |
+| bank3.bin, HP2 | `0x820000000` | 204833664 |
+| bank4.bin, HP3 | `0x830000000` | 202376064 |
+| Source staging, copied from bank0 prefix | `0x840000000` | 104693760 |
+
+After a fresh PL reset, with no active session:
+
+```sh
+sudo python3 src/software/tools/load_banks.py /data/bitnet-images --uio /dev/uio0
+```
+
+Every image size is checked before any hardware write. The loader refuses an incompatible identity, nonzero status, or pending/overrun PIO state. Do not modify image files during loading. If loading is interrupted, reset and reload the entire image set before inference.
+
+The descriptor default is `--source-offset 0x40000000 --source-bytes 104693760`. The source offset is relative to HP0 base `0x800000000`; the resulting physical address is `0x840000000`. Do not pass that physical address as the descriptor offset.
+
+## Prefill and Decode
+
+The command interface operates on token IDs or embedding vectors, not raw text. Tokenization, special-token policy, output decoding, and generation stopping belong to the application and must match the exported model.
+
+For a two-token prompt (replace the illustrative IDs with your tokenizer output):
+
+```sh
+python3 src/software/tools/prepare_hidden.py --package /data/BITNET --tokens 1 2 --output /data/prompt.q16
+sudo build/software/bitnetctl round --uio /dev/uio0 --session 1 --epoch 1 --mode prefill --position 0 --tokens 2 --new-session --last-prompt --hidden /data/prompt.q16 --timeout-ms 120000
+```
+
+Only the first round uses `--new-session`, and it must be prefill at position 0. For a longer prompt, split into one- or two-token rounds; omit `--last-prompt` until the final prompt round. Continue with the same session and image epoch and the preceding result's `next_position`. The final prompt round returns a token with `token_valid=1`; intermediate prompt rounds do not.
+
+For decode, prepare the returned token's embedding, then submit one token at `next_position`. The example assumes the first result returned token 42 and next position 2; use the actual result values:
+
+```sh
+python3 src/software/tools/prepare_hidden.py --package /data/BITNET --tokens 42 --output /data/decode-2.q16
+sudo build/software/bitnetctl round --uio /dev/uio0 --session 1 --epoch 1 --mode decode --position 2 --tokens 1 --hidden /data/decode-2.q16 --timeout-ms 120000
+```
+
+Repeat with each returned token until the application's stop condition or the 4096-position limit. Decode always uses one token and never `--last-prompt`. Do not change model data under an active session.
+
+Alternatively, `prepare_hidden.py --json vectors.json --output hidden.q16` accepts an array of one or two vectors, each containing 2560 finite numbers. Conversion uses signed Q16.16, round-to-nearest with ties away from zero, and int32 saturation. Files are lane-major little-endian int32: 10240 bytes for one token or 20480 for two. The C runtime interleaves them into 640 PIO groups and zero-fills the inactive lane. Preparation refuses to overwrite an existing output file.
+
+Successful round output has `rc=0`, `result_valid=1`, `success=1`, and validated identity/position fields. Nonzero process exit indicates an error. On timeout, the driver does not ACK a late result; inspect status and recover/reset the PL before retrying. There is no software reset register in this ABI. Restarting the CLI is not a hardware reset, and pending results must not be discarded blindly.
+
+## Verification Scope
+
+`make -C src/software test` compiles with `-Wall -Wextra -Werror`. The C mock exercises TP2 and single-token prefill, decode, all 640 groups, backpressure, invalid descriptors, faults, identity mismatches, and late-result timeout behavior. Python tests cover register agreement with Scala, bank layout and loader sizes, image-copy/build failure handling, embedding conversion, Linux mapping, exclusive access, JSON output, and validation before submission.
+
+The Linux software suite was run under x86-64 WSL: the C driver scenarios and all 23 Python tests passed. These tests use mock or file-backed MMIO, synthetic layout metadata, and small image fixtures.
+
+The repository does not include a bootable PS Linux image, model weights, Vivado checkpoints, or tool caches. The existing bitstream and Scala hardware are unchanged by the software integration.

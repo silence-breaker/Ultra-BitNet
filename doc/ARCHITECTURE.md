@@ -1,55 +1,61 @@
-# BitNet 加速器设计架构
+# BitNet Accelerator Architecture
 
-## 设计目标与边界
+## System Partitioning
 
-设计面向固定模型的 resident 推理数据流。PS 负责分词、embedding 准备、权重镜像装载和任务提交；PL 负责层内调度、矩阵计算、注意力、激活处理以及最终 LM/argmax。一次提交通过身份标记关联输入、内存事务和完成事件，结果经寄存器和中断返回 PS。
+The processing system (PS) handles tokenization, embedding preparation, model-image loading, and round submission. Programmable logic (PL) handles layer scheduling, matrix operations, attention, activation processing, and final LM/argmax. Identity fields associate inputs, memory transactions, and completion events with a submitted request. Results return through registers, with an optional interrupt.
 
-模型维度在 elaboration 时确定：30 层、hidden size 2560、FFN size 6912、词表 128256、20 个 query head、5 个 KV head、每 head 128 维，最大序列长度 4096。当前板级使用 `BitNetConfig.Production`，tokenParallelism 为 2，engineCount 和 physicalMatrixEngineCount 均为 1，spuCount 为 4。部分内部类型名保留 `Tp4`，表示通用接口和调度组织；实际实例数量由生产配置决定，不能由类型名推断。
+Model dimensions are fixed at elaboration: 30 layers, hidden size 2560, FFN size 6912, vocabulary 128256, 20 query heads, 5 KV heads, 128 features per head, and maximum sequence length 4096. `BitNetConfig.Production` selects token parallelism 2, one logical and physical matrix engine, and four SPUs. Some internal types retain `Tp4` in their names because they describe generalized interfaces and scheduling; instance counts come from the production configuration.
 
-## 分层组织
+## Organization
 
-![Ultra-BitNet TP2 板级架构：PS 软件经 AXI-Lite 提交任务，PL 内部以事件调度共享计算与存储资源，五路 AXI 接口连接同一 PS DDR。](assets/architecture.png)
+![Ultra-BitNet TP2 architecture: Linux software submits work over AXI-Lite; event-driven PL services share compute and tensor resources; five AXI ports access the same PS DDR.](assets/architecture.png)
 
-[查看可缩放矢量图](assets/architecture.svg)
+[Open the scalable diagram](assets/architecture.svg)
 
-图中箭头表示主要控制和数据交互，省略局部 FIFO、复位及逐信号连接。计算壳内的算子服务共享物理资源；五路 DDR 接口访问同一 PS DDR 控制器，并非五套独立存储器。
+Arrows show major control and data interactions. Local FIFOs, resets, and individual signal connections are omitted. Operator services share physical resources; the five DDR interfaces do not represent five independent memories.
 
-板级顶层在 `BitNetResidentBoardAccelerator.scala`。`BitNetResidentSessionInferenceTop.scala` 连接 session controller 和完整计算壳；`BitNetResidentPreloadedHiddenFullLayerShell.scala` 汇聚各物理资源并建立完整数据通路。session 控制器保存 round/session 状态，计算壳是矩阵阵列、tensor 存储和 memory hub 的唯一所有者。
+`BitNetResidentBoardAccelerator.scala` is the board-level top. `BitNetResidentSessionInferenceTop.scala` connects the session controller to the complete compute shell. `BitNetResidentPreloadedHiddenFullLayerShell.scala` owns and connects the physical resources. The session controller retains round/session state; the compute shell owns the matrix array, tensor storage, and memory hub.
 
-## 事件驱动的层执行
+## Event-Driven Layer Execution
 
-`BitNetResidentLayerEventScheduler` 以数据真正提交为推进条件。RMS、QKV、注意力、输出投影、残差、Gate/Up、ReLU² 和 Down 之间通过带身份的命令与 completion 协作；前一模块仅发出命令不会被当成计算完成。继续 prefill 的调度边界与需要 final RMS/LM 的末轮或 decode 边界分开处理。
+`BitNetResidentLayerEventScheduler` advances when data is committed, not merely when an operator accepts a command. RMS, QKV, attention, output projection, residual, Gate/Up, ReLU-squared, and Down cooperate through identity-bearing commands and completions. Intermediate prefill boundaries are distinguished from final-prompt and decode boundaries requiring final RMS/LM.
 
-prefill 和 decode 复用物理计算资源，由配置和模式决定 token/head 映射。请求携带 request/session、epoch、generation 等字段，拒绝过期 completion、错序 beat 和越界访问。严重协议错误进入 fail-stop/quarantine，防止错误结果被当作有效 token 返回。
+Prefill and decode reuse physical resources; mode and configuration determine token/head mapping. Request/session, epoch, and generation fields reject stale completions, out-of-order beats, and out-of-range accesses. Serious protocol errors enter fail-stop/quarantine so invalid results cannot be returned as valid tokens.
 
-## 矩阵计算与共享算术
+## Matrix Compute and Shared Arithmetic
 
-`BitNetContinuousMatrixArrayCore` 以 DSP48E2 级联执行连续矩阵计算。权重格式转换在阵列前完成，使高频路径专注于定长乘加、累加和结果输出。生产配置使用八条 chain；三值权重经 `BitNetTernaryMap0DspOperandCodec` 等模块映射到 DSP 操作数。
+`BitNetContinuousMatrixArrayCore` uses DSP48E2 cascades for continuous matrix computation. Weight conversion precedes the array, keeping the high-frequency path focused on fixed-width multiply-accumulate, accumulation, and output. The production configuration has eight chains; modules such as `BitNetTernaryMap0DspOperandCodec` map ternary weights to DSP operands.
 
-`BitNetTp4MatrixCluster` 与 lease 控制复用实际单个 TP2 核。Linear、QK/SV、LM 等操作按所有权和退休条件使用计算资源，不为每个算子复制完整矩阵引擎。权重准备、计算和返回路径使用 FIFO、skid buffer 与寄存边界吸收反压。
+`BitNetTp4MatrixCluster` and resource leases share one physical TP2 core. Linear, QK/SV, and LM use it under ownership and retirement rules rather than duplicating a matrix engine for every operator. FIFOs, skid buffers, and register boundaries absorb backpressure across weight preparation, compute, and return paths.
 
-非矩阵算术采用固定点实现，包括 RMSNorm、动态 i8 量化、RoPE、QK scaling、softmax、残差和 FFN。FFN 激活计算为 `g > 0 ? g*g*u : 0`，需要与模型量化、舍入和饱和规则共同核对。`BitNetSharedSpuArithmeticPool` 及各 adapter 组织共享算术资源；接口中保留明确的位宽和溢出规则。
+Non-matrix arithmetic is fixed-point: RMSNorm, dynamic i8 quantization, RoPE, QK scaling, softmax, residual addition, and FFN. FFN activation computes `g > 0 ? g*g*u : 0`; its interpretation depends on the model's quantization, rounding, and saturation rules. `BitNetSharedSpuArithmeticPool` and its adapters organize shared arithmetic with explicit widths and overflow behavior.
 
-## Tensor 与权重存储
+## Tensor and Weight Storage
 
-`BitNetUnifiedResidentTensorProductionShell` 将 semantic frontend、related-clock bridge 和物理存储后端连接为统一 tensor 子系统。Projection、Query、LM 通过 packed router 访问该资源，Query/LM 的 alias 租用通过 owner/generation 认证。
+`BitNetUnifiedResidentTensorProductionShell` combines the semantic frontend, related-clock bridge, and physical memory backend. Projection, Query, and LM access it through a packed router. Query/LM aliases are authenticated by owner and generation.
 
-Matrix 和 LM 使用共享 weight tile cache；双槽结构允许准备下一 tile 时继续消费当前 tile。stage retirement 必须等待计算和内存消费结束。packed KV append/read、attention context 和 LM candidate FIFO 使用专用格式与局部 BRAM，减少宽数据在控制路径中的复制。
+Matrix and LM share a two-slot weight-tile cache, allowing preparation of the next tile while the current tile is consumed. Stage retirement waits for both compute and memory consumption. Packed KV append/read, attention context, and LM candidate FIFOs use dedicated formats and local BRAM to limit wide-data replication in control paths.
 
-## 五银行 DDR 数据通路
+## Five-Bank DDR Data Path
 
-`BitNetProductionPlMemoryOwnershipHub` 和 `BitNetFiveBankAxiMemoryComplex` 统一仲裁 Matrix、LM、KV、辅助数据和权重搬运流量。每个 bank 维护 AXI tag、读写响应和事务归属；独立配额在保持计算优先的同时允许 staging 前进。
+`BitNetProductionPlMemoryOwnershipHub` and `BitNetFiveBankAxiMemoryComplex` arbitrate Matrix, LM, KV, auxiliary, and weight-staging traffic. Each bank tracks AXI tags, responses, and transaction ownership. Independent quotas prioritize compute while allowing staging to progress.
 
-当前 AXU3EGB 镜像的五个接口全部连接 PS DDR：bank 0 经 HPC0，bank 1 至 4 经 HP0 至 HP3。它们是同一 PS DDR 系统的五个访问通道，不是五套独立 DRAM。bank 0 的板级地址偏移为 `0x8_5000_0000`；其他四个逻辑银行基址依次为 `0x8_0000_0000` 至 `0x8_3000_0000`，`0x8_4000_0000` 区域用于源数据 staging。当前镜像不实例化 PL DDR MIG。
+All five interfaces in this board image access PS DDR. Bank 0 uses HPC0; banks 1 through 4 use HP0 through HP3. Bank 0 starts at physical address `0x850000000`; banks 1 through 4 start at `0x800000000`, `0x810000000`, `0x820000000`, and `0x830000000`. The source-staging region starts at `0x840000000`. The image does not instantiate a PL DDR MIG.
 
-## 板级 ABI 与时钟
+The round descriptor carries an HP0-relative source offset, not a physical address. The default `source_offset = 0x40000000` is translated by the bank-1 AXI adapter using base `0x800000000`, yielding `0x840000000`. The staging controller requires at least 104693760 source bytes. After first-epoch staging, unchanged model epochs reuse resident Transformer weights.
 
-AXI-Lite 控制窗口基址为 `0x80000000`。寄存器表由 `BitNetResidentBoardRegister` 定义，包含 submit、session/image epoch、round 参数、PS source 地址、result、fault、IRQ enable 和 hidden PIO。
+## Board ABI and Clocks
 
-hidden 每拍包含 2 个 token × 4 个 SPU × 32 bit，即 256 bit；PS 通过 `0x80` 起的 8 个数据寄存器、`0xa0` 的 last 和 `0xa4` 的 push 输入数据，`0xa8` 查询状态。Scala 顶层保留 AXI Stream 接口，但当前 BD 将该输入绑零，实际使用 PIO。软件须等待可接收状态，提交后读取带身份的结果并 ACK。硬件 identity 数值固定为 `0x48425432`，用于匹配已发布镜像。
+The AXI-Lite control window starts at `0x80000000`. `BitNetResidentBoardRegister` defines submit, session/image epoch, round parameters, source range, result, fault, IRQ enable, and hidden PIO registers. The hardware identity remains `0x48425432` to match the released bitstream.
 
-PS 提供约 50 MHz 参考时钟，MMCM 生成相关的 slow 50 MHz 和 fast 100 MHz。内存接口与控制在 slow 域，阵列在 fast 域。跨域 mailbox 保持 payload 直到 request/ack 完成；时序约束和协议行为必须一起检查。构建脚本不应将相关时钟整体声明为异步，以免隐藏真实约束问题。
+Each hidden beat holds 2 token lanes x 4 SPU shards x 32 bits, or 256 bits. Software writes eight registers starting at `0x80`, sets last at `0xa0`, and pushes at `0xa4`; `0xa8` reports PIO status. Every round transfers 640 groups. Words are ordered lane 0 shards 0..3, then lane 1 shards 0..3; feature index is `group * 4 + shard`. Values are signed Q16.16, the inactive second lane is zero, and only group 639 carries last. The Scala top exposes AXI Stream, but the released block design ties that input to zero and uses PIO.
 
-## 实现边界
+The PS supplies an approximately 50 MHz reference. A common MMCM generates related 50 MHz slow and 100 MHz fast clocks. Memory/control use slow; the array uses fast. Cross-domain mailboxes retain payload until request/ack completes. Protocol behavior and timing constraints must be reviewed together; globally declaring these clocks asynchronous would hide real timing checks.
 
-布局布线通过说明当前器件、频率和约束下存在可实现的网表。它不替代软件 ABI、DDR 初始化、缓存一致性、模型镜像和端到端数值正确性验证。完整模型推理的性能应以匹配镜像后的实测为准。
+## Linux Software Integration
+
+`src/software/bitnet.c` implements the round protocol through injectable MMIO/time callbacks. It validates descriptors before submission, honors PIO backpressure, checks input and completion identities, captures results before ACK, and bounds the whole round by one monotonic timeout. A failed round requires recovery before that driver instance can be reused.
+
+`bitnet_linux.c` maps UIO map 0 (or an explicitly selected `/dev/mem` window), performs ordered 32-bit accesses, and takes an exclusive device-file lock. `bitnetctl` exposes `probe`, `status`, and `round`, returning machine-readable JSON. The runtime polls completion; interrupts are not required.
+
+Python tools validate the exported model package, arrange Map0 weights into five bank images, initialize KV storage, load reserved PS DDR, and convert BF16 embeddings or JSON vectors to Q16.16 hidden input. Image layout metadata describes addresses and ranges. Tokenization and the application-level generation loop remain host responsibilities: submit prefill rounds, use the returned token's embedding for decode, and advance using `next_position` while retaining session/image epoch.
