@@ -6,7 +6,7 @@ runtimes, PC-side JTAG/serial transport, and Git LFS model assets.
 
 ## Repository
 
-- `src/docs/`: operation guide and performance notes.
+- `docs/`: operation guide and performance notes.
 - `src/hardware/accelerator/`: Verilog/SystemVerilog RTL, HLS kernels, and simulation testbenches.
 - `src/hardware/board/`: AXU3EGB constraints and board block-design sources.
 - `src/hardware/baremetal/`: board-side bare-metal runtime, kernels, protocol, and linker patches.
@@ -49,7 +49,7 @@ in local build storage unless explicitly exported as release assets.
 3. Merge `src/hardware/linux/bitnet-reserved-memory.dtsi` into the target device tree for Linux deployment.
 4. Use `src/pc/jtag/` or `src/pc/relay/` for JTAG, serial, and host-side inference transport.
 
-Read [`src/docs/OPERATION_GUIDE.md`](src/docs/OPERATION_GUIDE.md) before using a
+Read [`docs/OPERATION_GUIDE.md`](docs/OPERATION_GUIDE.md) before using a
 board. External tool installations, board access, and licensed model assets
 are required for hardware execution.
 
