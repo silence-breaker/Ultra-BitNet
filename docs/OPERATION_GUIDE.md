@@ -12,7 +12,7 @@ The reference implementation has been validated at 125 MHz PL clock, 128-bit DMA
 
 - Vivado/Vitis 2020.1 with XCZU3EG device support for hardware reconstruction.
 - Python 3.10 or newer for conversion and protocol utilities.
-- A Linux shell or WSL for `scripts/evaluate_host.sh`.
+- A Linux shell or WSL for `hardware/scripts/evaluate_host.sh`.
 - An AXU3EGB-compatible board, JTAG connection, UART, and storage for the model assets.
 - A licensed BitNet-compatible model and tokenizer. The model is deliberately excluded from this repository.
 
@@ -22,8 +22,8 @@ Run these checks before touching the board:
 
 ```bash
 python3 tools/inspect_safetensors.py --help
-bash scripts/evaluate_host.sh
-python3 -m py_compile tools/*.py integration/pc_relay/*.py integration/pc_relay/tools/*.py
+bash hardware/scripts/evaluate_host.sh
+python3 -m py_compile tools/*.py pc/relay/*.py pc/relay/tools/*.py
 ```
 
 The host checks validate file formats, reference tensor paths, tokenizer conversion entry points, and protocol utilities. They do not prove that a particular bitstream is compatible with the board.
@@ -51,7 +51,7 @@ The exact exporter options may vary with the model revision. Record the model ve
 Open a Vivado Tcl shell in the repository root and run the project script:
 
 ```tcl
-source scripts/build_plddr_dual_project.tcl
+source hardware/scripts/build_plddr_dual_project.tcl
 ```
 
 Use the script's supported action sequence:
@@ -68,7 +68,7 @@ Confirm the routed timing report has non-negative WNS and zero TNS. Confirm that
 ## 6. Bare-metal build and JTAG bring-up
 
 1. Import the exported XSA into Vitis.
-2. Create an AArch64 standalone application from `sw/baremetal`.
+2. Create an AArch64 standalone application from `hardware/baremetal`.
 3. Configure the linker script and model asset base addresses to match the board design.
 4. Build the application and keep the resulting ELF outside the source commit.
 5. Load PS initialization, the bitstream, and the ELF with XSDB/JTAG.
@@ -95,11 +95,11 @@ sudo env BITNET_PLDDR_ENABLE=1 \
   --tokens 8 --temperature 0 --top-k 1
 ```
 
-Before rebooting Linux, merge `linux/bitnet-reserved-memory.dtsi` into the board device tree and reserve the DMA/packet-cache ranges. The boot firmware and XSA must agree on the HP port width, AXI DMA address, and PL clock. Check `/proc/iomem` after reboot and ensure the reserved regions are not assigned to another driver.
+Before rebooting Linux, merge `hardware/linux/bitnet-reserved-memory.dtsi` into the board device tree and reserve the DMA/packet-cache ranges. The boot firmware and XSA must agree on the HP port width, AXI DMA address, and PL clock. Check `/proc/iomem` after reboot and ensure the reserved regions are not assigned to another driver.
 
 ## 8. Relay and protocol integration
 
-`integration/pc_relay` contains host-side prompt/token utilities and JTAG/serial relay helpers. `integration/socket_json_bridge` contains the transport schema and protocol implementation. Configure the serial device, board address, and TCP ports through command-line options or a local untracked configuration file.
+`pc/relay` contains host-side prompt/token utilities and JTAG/serial relay helpers. `pc/socket_json_bridge` contains the transport schema and protocol implementation. Configure the serial device, board address, and TCP ports through command-line options or a local untracked configuration file.
 
 For continuous operation, use one long-lived process and one transport owner. Do not run a serial getty and the relay on the same UART. Keep captured prompts, reports, logs, and board addresses outside the public repository.
 
