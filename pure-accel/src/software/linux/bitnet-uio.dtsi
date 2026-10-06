@@ -1,0 +1,23 @@
+/* Merge into the board device tree; the parent buses use 64-bit reg cells.
+ * These ranges must be real PS DDR and excluded from every OS/firmware user.
+ * Enable CONFIG_UIO and CONFIG_UIO_PDRV_GENIRQ; bind generic-uio in bootargs.
+ */
+/ {
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        bitnet_reserved: buffer@800000000 {
+            reg = <0x8 0x00000000 0x0 0x60000000>;
+            no-map;
+        };
+    };
+
+    bitnet_control: accelerator@80000000 {
+        compatible = "generic-uio";
+        reg = <0x0 0x80000000 0x0 0x1000>;
+        linux,uio-name = "ultra-bitnet";
+        status = "okay";
+    };
+};

@@ -1,0 +1,9 @@
+#ifndef BITNET_LINUX_XSTATUS_H
+#define BITNET_LINUX_XSTATUS_H
+
+#define XST_SUCCESS 0
+#define XST_FAILURE 1
+#define XST_INVALID_PARAM 15
+#define XST_BUFFER_TOO_SMALL 26
+
+#endif
