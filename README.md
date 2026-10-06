@@ -2,6 +2,8 @@
   <img src="LOGO.png" alt="Ultra-BitNet logo" width="420">
 </p>
 
+<hr>
+
 <div align="center">
 
 Two BitNet accelerator implementations for the AXU3EGB / Zynq UltraScale+ MPSoC platform. **pure-accel** places Transformer execution and scheduling in programmable logic (PL). **mix-accel** combines a processing-system (PS) inference runtime with PL compute kernels.
