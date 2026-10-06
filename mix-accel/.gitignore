@@ -1,0 +1,34 @@
+.git/
+.venv/
+__pycache__/
+*.pyc
+build/
+bin/
+obj/
+cache/
+.Xil/
+.runs/
+.gen/
+*.jou
+*.log
+*.str
+*.wdb
+*.wlf
+*.vcd
+*.bit
+*.bin
+*.elf
+*.xsa
+*.tar
+*.safetensors
+!src/models/official_model/*.safetensors
+*.jsonl
+tmp/
+logs/
+database/
+# Keep the validated release model under src/models/official_model when it is
+# intentionally included in a complete deployment bundle.
+model/
+src/models/*
+!src/models/official_model/
+!src/models/official_model/**

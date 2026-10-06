@@ -1,0 +1,15 @@
+[Unit]
+Description=Forward Wujing UART JSON to the PC over TCP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/alinx_bridge
+EnvironmentFile=-/etc/default/icraft-uart-bridge
+ExecStart=/root/alinx_bridge/start_bridge.sh ${PC_HOST} ${SERIAL_DEVICE}
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+#ifndef BITNET_LINUX_XPARAMETERS_H
+#define BITNET_LINUX_XPARAMETERS_H
+
+#define XPAR_AXI_DMA_0_DEVICE_ID 0u
+#define XPAR_AXI_DMA_0_BASEADDR 0x80000000u
+#define XPAR_AXI_DMA_1_DEVICE_ID 1u
+#define XPAR_AXI_DMA_1_BASEADDR 0x80010000u
+#define XPAR_PLDDR_STATUS_GPIO_BASEADDR 0x80020000u
+#define XPAR_PLDDR_STATUS_CALIBRATED_MASK 0x1u
+#define XPAR_PLDDR_STATUS_BUSY_MASK       0x2u
+#define XPAR_PLDDR_STATUS_ERROR_MASK      0x4u
+#define XPAR_PLDDR_STATUS_SPLIT_MEMORY_MASK 0x8u
+
+/* Vivado assign_bd_address result for the 1-GiB PL DDR4 controller. */
+#define XPAR_PL_DDR4_0_BASEADDR 0x400000000ull
+#define XPAR_PL_DDR4_0_HIGHADDR  0x43fffffffull
+#define XPAR_PL_DDR4_0_SIZE      0x40000000ull
+
+/* Device-tree reserved PS DDR cache used by the optional split topology. */
+#define XPAR_PS_DDR_CACHE_BASEADDR 0x50000000ull
+#define XPAR_PS_DDR_CACHE_HIGHADDR 0x61ffffffull
+#define XPAR_PS_DDR_CACHE_SIZE     0x12000000ull
+
+#endif

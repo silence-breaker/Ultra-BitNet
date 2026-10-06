@@ -1,0 +1,13 @@
+/src/target/
+/src/project/target/
+/src/project/project/
+/src/.bsp/
+/src/.metals/
+/src/simWorkspace/
+/src/build/
+/build/*/
+*.log
+*.jou
+.Xil/
+__pycache__/
+*.py[cod]

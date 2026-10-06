@@ -1,0 +1,24 @@
+/* Merge into the base device tree before Linux boots; runtime loading is too late. */
+/ {
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        /*
+         * Split-memory bitstream lane 0 reads persistent BTN1 packets from
+         * PS DDR through S_AXI_HP1_FPD.  Keep this aperture physically
+         * contiguous and outside the Linux page allocator so AXI DMA can
+         * consume it without a per-token bounce copy.
+         */
+        bitnet_psddr_cache: bitnet-psddr-cache@50000000 {
+            no-map;
+            reg = <0x0 0x50000000 0x0 0x12000000>;
+        };
+
+        bitnet_dma_reserved: bitnet-dma@70000000 {
+            no-map;
+            reg = <0x0 0x70000000 0x0 0x08000000>;
+        };
+    };
+};
